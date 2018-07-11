@@ -76,7 +76,6 @@ BOOST_AUTO_TEST_CASE(send_cmd)
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-
 BOOST_AUTO_TEST_SUITE(test_suite_main_2)
 
 BOOST_AUTO_TEST_CASE(send_invalid_cmd)
@@ -125,9 +124,7 @@ BOOST_AUTO_TEST_CASE(send_invalid_cmd)
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-
 BOOST_AUTO_TEST_SUITE(test_suite_main_3)
-
 BOOST_AUTO_TEST_CASE(send_multy_cmd)
 {
     std::system("rm -f intersec.txt intersec.count sym_diff.txt sym_diff.count");

@@ -31,10 +31,13 @@ target_link_libraries(test_server_start_cli
     ${Boost_LIBRARIES}
   )
 
+
+set(CTEST_OUTPUT_ON_FAILURE "TRUE")
+
 enable_testing()
 
 add_test(test_start test_server_start_cli  -t test_suite_main_1)
 
-add_test(send_cmd   test_server_cli        -t test_suite_main_1)
+add_test(send_cmd   test_server_cli        -t  test_suite_main_1)
 add_test(send_invalid_cmd test_server_cli  -t test_suite_main_2)
 add_test(send_multy_cmd test_server_cli    -t test_suite_main_3)
