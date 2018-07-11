@@ -12,6 +12,8 @@ BOOST_AUTO_TEST_CASE(send_cmd)
 {
     std::system("rm -f out.txt in.txt");
 
+    BOOST_TEST_MESSAGE("stage 1");
+
     {
         std::string data = 
         "INTERSECTION\n"
@@ -36,13 +38,19 @@ BOOST_AUTO_TEST_CASE(send_cmd)
         "SYMMETRIC_DIFFERENCE\n";
 
         auto f = std::ofstream("in.txt");
+        BOOST_CHECK_EQUAL( f.good(), true);
         std::stringstream ss;
         ss << data;
         f << ss.rdbuf();
+        BOOST_CHECK_EQUAL( f.good(), true);
+        f.close();
+        BOOST_CHECK_EQUAL( f.good(), true);
     }
-
+    BOOST_TEST_MESSAGE("stage 2");
     std::system("chmod 755 ../../tests/sh/send_cmds.sh");
+    BOOST_TEST_MESSAGE("stage 3");
     std::system("../../tests/sh/send_cmds.sh");
+    BOOST_TEST_MESSAGE("stage 4");
 
     {
         std::string data = 
@@ -96,9 +104,13 @@ BOOST_AUTO_TEST_CASE(send_invalid_cmd)
         "qwqwqwq\n";
 
         auto f = std::ofstream("in.txt");
+        BOOST_CHECK_EQUAL( f.good(), true);
         std::stringstream ss;
         ss << data;
         f << ss.rdbuf();
+        BOOST_CHECK_EQUAL( f.good(), true);
+        f.close();
+        BOOST_CHECK_EQUAL( f.good(), true);
     }
 
     std::system("chmod 755 ../../tests/sh/send_cmds.sh");
