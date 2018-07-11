@@ -10,12 +10,6 @@ script:
   - cmake --build Build
   - cmake --build Build --target test
   - cmake --build Build --target package
-  - netstat | grep "9001"
-  - cd Build/tests
-  - ./test_server_cli  --log_level=all -t test_suite_main_1
-  - ./test_server_cli  --log_level=all -t test_suite_main_2
-  - ./test_server_cli  --log_level=all -t test_suite_main_3
-  - cd ../../
 deploy:
   - provider: script
     skip_cleanup: true
