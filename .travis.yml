@@ -10,11 +10,12 @@ script:
   - cmake --build Build
   - cmake --build Build --target test
   - cmake --build Build --target package
-  - netstat | grep 9001
+  - netstat | grep "9001"
   - cd Build/tests
   - ./test_server_cli  -t --log-level=all test_suite_main_1
   - ./test_server_cli  -t --log-level=all test_suite_main_2
   - ./test_server_cli  -t --log-level=all test_suite_main_3
+  - ../join_server 45232
   - cd ../../
 deploy:
   - provider: script
