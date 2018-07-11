@@ -15,7 +15,6 @@ script:
   - ./test_server_cli  --log_level=all -t test_suite_main_1
   - ./test_server_cli  --log_level=all -t test_suite_main_2
   - ./test_server_cli  --log_level=all -t test_suite_main_3
-  - ../join_server 45232
   - cd ../../
 deploy:
   - provider: script
