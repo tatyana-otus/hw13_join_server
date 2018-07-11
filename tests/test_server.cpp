@@ -74,7 +74,10 @@ BOOST_AUTO_TEST_CASE(send_cmd)
         BOOST_CHECK_EQUAL(ss.str(), data);
     }
 }
+BOOST_AUTO_TEST_SUITE_END()
 
+
+BOOST_AUTO_TEST_SUITE(test_suite_main_2)
 
 BOOST_AUTO_TEST_CASE(send_invalid_cmd)
 {
@@ -120,7 +123,10 @@ BOOST_AUTO_TEST_CASE(send_invalid_cmd)
         BOOST_CHECK_EQUAL(ss.str(), data);
     }
 }
+BOOST_AUTO_TEST_SUITE_END()
 
+
+BOOST_AUTO_TEST_SUITE(test_suite_main_3)
 
 BOOST_AUTO_TEST_CASE(send_multy_cmd)
 {
@@ -132,8 +138,8 @@ BOOST_AUTO_TEST_CASE(send_multy_cmd)
     std::system("../join_server 9001 &");
     std::system("sleep 1");
 
-    std::system("seq 1  1000 | xargs -n1 -P100 ../../tests/sh/gen_insert_A.sh > /dev/null");
-    std::system("seq 201 800 | xargs -n1 -P100 ../../tests/sh/gen_insert_B.sh > /dev/null");
+    std::system("seq 1  1000 | xargs -n1 -P10 ../../tests/sh/gen_insert_A.sh > /dev/null");
+    std::system("seq 201 800 | xargs -n1 -P10 ../../tests/sh/gen_insert_B.sh > /dev/null");
 
     std::system("echo \"INTERSECTION\" | nc -q 1 localhost 9001 > intersec.txt");
     std::system("echo \"SYMMETRIC_DIFFERENCE\" | nc localhost -q 1 9001 > sym_diff.txt");
