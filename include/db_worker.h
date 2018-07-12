@@ -86,16 +86,27 @@ private:
     }
 
 
-    void send_reply_ok(std::shared_ptr<session>& s)
+    void send_reply_ok(std::weak_ptr<session>& s)
     {
-        
-        s->send_reply(std::shared_ptr<view_t>(&ok_reply, [](view_t*){}));
+        if (auto spt = s.lock()) { 
+            spt->send_reply(std::shared_ptr<view_t>(&ok_reply, [](view_t*){}));
+        }
     }
 
 
-    void send_reply_err(std::shared_ptr<session>& s)
+    void send_reply_err(std::weak_ptr<session>& s)
     {
-        s->send_reply(std::shared_ptr<view_t>(&err_reply, [](view_t*){}));
+        if (auto spt = s.lock()) {
+            spt->send_reply(std::shared_ptr<view_t>(&err_reply, [](view_t*){}));
+        }
+    }
+
+
+    void send_reply_res(std::weak_ptr<session>& s, std::shared_ptr<view_t> t)
+    {
+        if (auto spt = s.lock()) {
+            spt->send_reply(t);
+        }
     }
 
 
@@ -113,10 +124,10 @@ private:
         v->push_back("OK\n");
     }
 
-    
+
     void exec_cmd(task_t& t)
     {
-        std::shared_ptr<session> s;
+        std::weak_ptr<session> s;
         std::shared_ptr<std::vector<std::string>> cmd;
         std::tie(s, cmd) = t;
 
@@ -133,9 +144,9 @@ private:
                     send_reply_ok(s);
                 }   
                 else{
-                    auto str ="ERR duplicate " + cmd->at(2) + "\n";  
-                    s->send_reply(std::make_shared<view_t>(std::initializer_list<std::string>{std::move(str)}));                                
-                }
+                    auto str ="ERR duplicate " + cmd->at(2) + "\n"; 
+                    send_reply_res(s, std::make_shared<view_t>(std::initializer_list<std::string>{std::move(str)}));
+                 }
             }
             
             else if(cmd->at(0) == "TRUNCATE"){ // TRUNCATE table
@@ -149,16 +160,20 @@ private:
 
             else if(cmd->at(0) == "INTERSECTION"){
                 if(cmd->size() != 1) throw std::invalid_argument("");
-                if(!view_intersec_valid)
-                    validate_table_view(intersection, view_intersec);
-                s->send_reply(view_intersec);
+                if(!s.expired()){
+                    if(!view_intersec_valid)
+                        validate_table_view(intersection, view_intersec);
+                    send_reply_res(s, view_intersec);
+                }    
             }
 
             else if(cmd->at(0) == "SYMMETRIC_DIFFERENCE"){
                 if(cmd->size() != 1) throw std::invalid_argument("");
-                if(!view_sym_diff_valid)
-                    validate_table_view(symmetric_difference, view_sym_diff);
-                s->send_reply(view_sym_diff);
+                if(!s.expired()){
+                    if(!view_sym_diff_valid)
+                        validate_table_view(symmetric_difference, view_sym_diff);
+                    send_reply_res(s, view_sym_diff);
+                }    
             }
 
             else throw std::invalid_argument("");

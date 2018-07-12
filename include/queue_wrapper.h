@@ -22,8 +22,8 @@ struct queue_wrapper
         q_data.push(value);
         cv.notify_one();
         lk_file.unlock();
-
     }
+    
 
     T& front()
     {
@@ -31,7 +31,8 @@ struct queue_wrapper
     }
 
 
-    void pop(){
+    void pop()
+    {
 
         return q_data.pop();
     }

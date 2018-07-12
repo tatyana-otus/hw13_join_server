@@ -2,7 +2,7 @@
 #include "queue_wrapper.h"
 #include <boost/algorithm/string.hpp>
 
-using task_t = std::tuple<std::shared_ptr<session>, std::shared_ptr<std::vector<std::string>>>;
+using task_t = std::tuple<std::weak_ptr<session>, std::shared_ptr<std::vector<std::string>>>;
 using tasks_t = queue_wrapper<task_t>;
 
 
@@ -39,8 +39,7 @@ public:
 
 
     void do_write()
-    {
-  
+    { 
         auto self(shared_from_this());
         boost::asio::async_write(socket, reply_to_buffers(),
             [this, self](boost::system::error_code ec, std::size_t )
@@ -62,7 +61,6 @@ public:
     }
 
     
-
     std::vector<boost::asio::const_buffer> reply_to_buffers()
     {
         std::vector<boost::asio::const_buffer> buffers;
