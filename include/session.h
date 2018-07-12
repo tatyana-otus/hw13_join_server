@@ -16,7 +16,7 @@ public:
     session(tcp::socket socket_, std::shared_ptr<session_storage> storage_,
             std::shared_ptr<tasks_t> tasks_)
     : socket(std::move(socket_)), ss(storage_),
-    tasks(tasks_){}
+    tasks(tasks_), cur_reply(nullptr){}
 
 
     void start ()
@@ -26,46 +26,48 @@ public:
     }
 
 
-    void do_write(const std::string  msg)
+    void send_reply(std::shared_ptr<view_t> r)
     {
-        auto self(shared_from_this());
-        boost::asio::async_write(socket,
-            boost::asio::buffer(msg,
-            msg.length()),
-        [this, self](boost::system::error_code ec, std::size_t )
-        {
-          if (ec)
-          {
-            //socket.close();
-            ss->remove_session(shared_from_this()); 
-          }
-        });
+        std::lock_guard<std::mutex> lock(mx_reply); 
+        q_reply.push(r);
+        if(cur_reply == nullptr){
+            cur_reply = q_reply.front();
+            q_reply.pop();
+            do_write();
+        }
     }
 
 
-    void send_reply(std::shared_ptr<view_t> r)
+    void do_write()
     {
-        if(r == nullptr) return;
-        reply = r;
-
+  
         auto self(shared_from_this());
         boost::asio::async_write(socket, reply_to_buffers(),
             [this, self](boost::system::error_code ec, std::size_t )
             {
-                reply = nullptr;
-                if (ec){
-                    //socket.close();
-                    ss->remove_session(shared_from_this());    
+                
+                if (!ec){
+                    std::lock_guard<std::mutex> lock(mx_reply);
+                    cur_reply = nullptr;
+                    if(!q_reply.empty()){
+                        cur_reply = q_reply.front();
+                        q_reply.pop();
+                        do_write();    
+                    }    
+                }
+                else{
+                    ss->remove_session(shared_from_this());
                 }           
             });
     }
 
+    
 
     std::vector<boost::asio::const_buffer> reply_to_buffers()
     {
         std::vector<boost::asio::const_buffer> buffers;
      
-        for (const auto& s: *reply){
+        for (const auto& s: *cur_reply){
             buffers.push_back(boost::asio::buffer(s));
         }    
         return buffers;
@@ -93,7 +95,6 @@ private:
                 do_read();
             }
             else{
-                //socket.close();
                 ss->remove_session(shared_from_this());
             }
         });
@@ -106,5 +107,7 @@ private:
 
     std::shared_ptr<tasks_t> tasks;
 
-    std::shared_ptr<view_t> reply;
+    std::shared_ptr<view_t> cur_reply;
+    std::queue<std::shared_ptr<view_t>>q_reply; 
+    std::mutex mx_reply;
 };

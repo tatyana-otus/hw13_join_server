@@ -25,18 +25,6 @@ struct queue_wrapper
 
     }
 
-    void push( T&& value )
-    {
-        q_data.push(value);
-    }
-
-
-    void push( const T& value )
-    {
-        q_data.push(value);
-    }
-
-
     T& front()
     {
         return q_data.front();
@@ -70,5 +58,18 @@ struct queue_wrapper
     std::exception_ptr eptr {nullptr};
 
 private:  
+    
+    void push( T&& value )
+    {
+        q_data.push(value);
+    }
+
+
+    void push( const T& value )
+    {
+        q_data.push(value);
+    }
+
+
     std::queue<T> q_data;
 };

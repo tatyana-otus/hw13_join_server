@@ -86,9 +86,16 @@ private:
     }
 
 
-    void post_reply(std::shared_ptr<session>& s, std::shared_ptr<view_t>  v)
+    void send_reply_ok(std::shared_ptr<session>& s)
     {
-        s->send_reply(v);
+        
+        s->send_reply(std::shared_ptr<view_t>(&ok_reply, [](view_t*){}));
+    }
+
+
+    void send_reply_err(std::shared_ptr<session>& s)
+    {
+        s->send_reply(std::shared_ptr<view_t>(&err_reply, [](view_t*){}));
     }
 
 
@@ -123,9 +130,12 @@ private:
                 if(insert(idx, id, cmd->at(3)) == 0){
                     view_intersec_valid = false;
                     view_sym_diff_valid = false;
-                    s->do_write(ok_reply);
+                    send_reply_ok(s);
+                }   
+                else{
+                    auto str ="ERR duplicate " + cmd->at(2) + "\n";  
+                    s->send_reply(std::make_shared<view_t>(std::initializer_list<std::string>{std::move(str)}));                                
                 }
-                else s->do_write("ERR duplicate " + cmd->at(2) + "\n");                                   
             }
             
             else if(cmd->at(0) == "TRUNCATE"){ // TRUNCATE table
@@ -134,27 +144,27 @@ private:
                 truncate(idx);
                 view_intersec_valid = false;
                 view_sym_diff_valid = false;
-                s->do_write(ok_reply);
+                send_reply_ok(s);
             }
 
             else if(cmd->at(0) == "INTERSECTION"){
                 if(cmd->size() != 1) throw std::invalid_argument("");
                 if(!view_intersec_valid)
                     validate_table_view(intersection, view_intersec);
-                post_reply(s, view_intersec);
+                s->send_reply(view_intersec);
             }
 
             else if(cmd->at(0) == "SYMMETRIC_DIFFERENCE"){
                 if(cmd->size() != 1) throw std::invalid_argument("");
                 if(!view_sym_diff_valid)
                     validate_table_view(symmetric_difference, view_sym_diff);
-                post_reply(s, view_sym_diff);
+                s->send_reply(view_sym_diff);
             }
 
             else throw std::invalid_argument("");
         }
         catch(const std::exception &e) {
-            s->do_write(er_reply);
+            send_reply_err(s);
             return;
         }
     }
@@ -198,9 +208,8 @@ private:
         { "A", 0 }, { "B", 1 }
     };
 
-
-    const std::string ok_reply = "OK\n"; 
-    const std::string er_reply = "ERR wrong command\n";
+    view_t ok_reply  = {"OK\n"};
+    view_t err_reply = {"ERR wrong command\n"};
 
     table_t intersection; 
     table_t symmetric_difference;
