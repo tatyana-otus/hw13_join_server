@@ -5,8 +5,7 @@
 using task_t = std::tuple<std::weak_ptr<session>, std::shared_ptr<std::vector<std::string>>>;
 using tasks_t = queue_wrapper<task_t>;
 
-
-using view_t  = std::vector<std::string>;
+using reply_t  = std::vector<std::string>;
 
 class session:
 public std::enable_shared_from_this<session>
@@ -26,7 +25,7 @@ public:
     }
 
 
-    void send_reply(std::shared_ptr<view_t> r)
+    void send_reply(std::shared_ptr<reply_t> r)
     {
         std::lock_guard<std::mutex> lock(mx_reply); 
         q_reply.push(r);
@@ -105,7 +104,7 @@ private:
 
     std::shared_ptr<tasks_t> tasks;
 
-    std::shared_ptr<view_t> cur_reply;
-    std::queue<std::shared_ptr<view_t>>q_reply; 
+    std::shared_ptr<reply_t> cur_reply;
+    std::queue<std::shared_ptr<reply_t>>q_reply; 
     std::mutex mx_reply;
 };

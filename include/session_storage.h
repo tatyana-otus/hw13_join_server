@@ -12,9 +12,7 @@ class session_storage
 {   
 public:
 
-    session_storage()
-    {}
-
+    session_storage(){}
 
     public:
     void add_session(std::shared_ptr<session> s) 

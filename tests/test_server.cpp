@@ -168,25 +168,15 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(test_suite_main_4)
 BOOST_AUTO_TEST_CASE(send_cmd_get_tables)
 {
-    std::system("rm -f inters_sym_diff.txt ");
-
     std::system("chmod 755 ../../tests/sh/gen_insert_A.sh");
     std::system("chmod 755 ../../tests/sh/gen_insert_B.sh");
     std::system("chmod 755 ../../tests/sh/read_tables.sh");
+    std::system("chmod 755 ../../tests/sh/test_send_cmd_read_table.sh");
 
-    std::system("../join_server 9001 &");
-    std::system("sleep 1");
+    std::system("../../tests/sh/test_send_cmd_read_table.sh");
 
-    std::system("seq 1  5000 | xargs -n1 -P10 ../../tests/sh/gen_insert_A.sh > /dev/null & P1=$!;\
-                 seq 4000 -1 1001 | xargs -n1 -P10 ../../tests/sh/gen_insert_B.sh > /dev/null & P2=$!;\
-                 ../../tests/sh/read_tables.sh 1000 & P3=$!;\
-                 wait $P1 $P2 $P3;"
-                );
-
-    std::system("printf \"INTERSECTION\nSYMMETRIC_DIFFERENCE\n\" | nc -q 1 localhost 9001 > inters_sym_diff.txt");
-
-
-    std::system("pkill join_server");
+    std::ifstream f("OK");
+    BOOST_CHECK_EQUAL( f.good(), true );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

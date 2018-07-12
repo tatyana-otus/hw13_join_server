@@ -89,7 +89,7 @@ private:
     void send_reply_ok(std::weak_ptr<session>& s)
     {
         if (auto spt = s.lock()) { 
-            spt->send_reply(std::shared_ptr<view_t>(&ok_reply, [](view_t*){}));
+            spt->send_reply(std::shared_ptr<reply_t>(&ok_reply, [](reply_t*){}));
         }
     }
 
@@ -97,12 +97,12 @@ private:
     void send_reply_err(std::weak_ptr<session>& s)
     {
         if (auto spt = s.lock()) {
-            spt->send_reply(std::shared_ptr<view_t>(&err_reply, [](view_t*){}));
+            spt->send_reply(std::shared_ptr<reply_t>(&err_reply, [](reply_t*){}));
         }
     }
 
 
-    void send_reply_res(std::weak_ptr<session>& s, std::shared_ptr<view_t> t)
+    void send_reply_res(std::weak_ptr<session>& s, std::shared_ptr<reply_t> t)
     {
         if (auto spt = s.lock()) {
             spt->send_reply(t);
@@ -110,9 +110,9 @@ private:
     }
 
 
-    void validate_table_view(table_t & t, std::shared_ptr<view_t> & v)
+    void validate_table_view(table_t & t, std::shared_ptr<reply_t> & v)
     {
-        v = std::make_shared<view_t>();
+        v = std::make_shared<reply_t>();
 
         v->reserve(t.size());
         for (auto & val : t ){
@@ -145,7 +145,7 @@ private:
                 }   
                 else{
                     auto str ="ERR duplicate " + cmd->at(2) + "\n"; 
-                    send_reply_res(s, std::make_shared<view_t>(std::initializer_list<std::string>{std::move(str)}));
+                    send_reply_res(s, std::make_shared<reply_t>(std::initializer_list<std::string>{std::move(str)}));
                  }
             }
             
@@ -223,14 +223,14 @@ private:
         { "A", 0 }, { "B", 1 }
     };
 
-    view_t ok_reply  = {"OK\n"};
-    view_t err_reply = {"ERR wrong command\n"};
+    reply_t ok_reply  = {"OK\n"};
+    reply_t err_reply = {"ERR wrong command\n"};
 
     table_t intersection; 
     table_t symmetric_difference;
 
-    std::shared_ptr<view_t> view_intersec;
-    std::shared_ptr<view_t> view_sym_diff;
+    std::shared_ptr<reply_t> view_intersec;
+    std::shared_ptr<reply_t> view_sym_diff;
 
     bool view_intersec_valid;
     bool view_sym_diff_valid;
