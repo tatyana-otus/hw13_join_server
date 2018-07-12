@@ -1,13 +1,11 @@
 #include <fstream>
 
-
 #define BOOST_TEST_MODULE test_main
 
 #include <boost/test/unit_test.hpp>
 
 
 BOOST_AUTO_TEST_SUITE(test_suite_main_1)
-
 BOOST_AUTO_TEST_CASE(send_cmd)
 {
     std::system("rm -f out.txt in.txt");
@@ -74,10 +72,11 @@ BOOST_AUTO_TEST_CASE(send_cmd)
         BOOST_CHECK_EQUAL(ss.str(), data);
     }
 }
+
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(test_suite_main_2)
 
+BOOST_AUTO_TEST_SUITE(test_suite_main_2)
 BOOST_AUTO_TEST_CASE(send_invalid_cmd)
 {
     std::system("rm -f out.txt in.txt");
@@ -122,7 +121,9 @@ BOOST_AUTO_TEST_CASE(send_invalid_cmd)
         BOOST_CHECK_EQUAL(ss.str(), data);
     }
 }
+
 BOOST_AUTO_TEST_SUITE_END()
+
 
 BOOST_AUTO_TEST_SUITE(test_suite_main_3)
 BOOST_AUTO_TEST_CASE(send_multy_cmd)
@@ -146,7 +147,7 @@ BOOST_AUTO_TEST_CASE(send_multy_cmd)
     std::system("grep -ocE '[0-9]+' intersec.txt > intersec.count");
     std::system("grep -ocE '[0-9]+' sym_diff.txt > sym_diff.count");
 
-   {
+    {
         auto f = std::ifstream("intersec.count");
         std::stringstream ss;
         ss << f.rdbuf();
@@ -159,6 +160,33 @@ BOOST_AUTO_TEST_CASE(send_multy_cmd)
         ss << f.rdbuf();
         BOOST_CHECK_EQUAL(ss.str(), "400\n");
     }
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+
+BOOST_AUTO_TEST_SUITE(test_suite_main_4)
+BOOST_AUTO_TEST_CASE(send_cmd_get_tables)
+{
+    std::system("rm -f inters_sym_diff.txt ");
+
+    std::system("chmod 755 ../../tests/sh/gen_insert_A.sh");
+    std::system("chmod 755 ../../tests/sh/gen_insert_B.sh");
+    std::system("chmod 755 ../../tests/sh/read_tables.sh");
+
+    std::system("../join_server 9001 &");
+    std::system("sleep 1");
+
+    std::system("seq 1  5000 | xargs -n1 -P10 ../../tests/sh/gen_insert_A.sh > /dev/null & P1=$!;\
+                 seq 4000 -1 1001 | xargs -n1 -P10 ../../tests/sh/gen_insert_B.sh > /dev/null & P2=$!;\
+                 ../../tests/sh/read_tables.sh 1000 & P3=$!;\
+                 wait $P1 $P2 $P3;"
+                );
+
+    std::system("printf \"INTERSECTION\nSYMMETRIC_DIFFERENCE\n\" | nc -q 1 localhost 9001 > inters_sym_diff.txt");
+
+
+    std::system("pkill join_server");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

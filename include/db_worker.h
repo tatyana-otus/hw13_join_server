@@ -3,8 +3,6 @@
 #include <unordered_map>
 #include <queue>
 
-//const size_t MAX_QUEUE_SIZE = 1024;
-
 struct db_worker
 {
     db_worker(std::shared_ptr<tasks_t> tasks_):

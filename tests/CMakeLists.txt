@@ -38,6 +38,7 @@ enable_testing()
 
 add_test(test_start test_server_start_cli  -t test_suite_main_1)
 
-add_test(send_cmd   test_server_cli        -t  test_suite_main_1)
-add_test(send_invalid_cmd test_server_cli  -t test_suite_main_2)
-add_test(send_multy_cmd test_server_cli    -t test_suite_main_3)
+add_test(send_cmd            test_server_cli -t test_suite_main_1)
+add_test(send_invalid_cmd    test_server_cli -t test_suite_main_2)
+add_test(send_multy_cmd      test_server_cli -t test_suite_main_3)
+add_test(send_cmd_get_tables test_server_cli -t test_suite_main_4)
