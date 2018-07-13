@@ -36,6 +36,7 @@ public:
         }
     }
 
+private:
 
     void do_write()
     { 
@@ -70,7 +71,6 @@ public:
         return buffers;
     }
 
-private:
     void do_read()
     {
     auto self(shared_from_this());

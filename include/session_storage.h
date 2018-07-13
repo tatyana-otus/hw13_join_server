@@ -1,8 +1,6 @@
 #include <iostream>
 #include <boost/asio.hpp>
 #include <set>
-//#include "command.h"
-//#include "bulk_handlers.h"
 
 using boost::asio::ip::tcp;
 
@@ -14,7 +12,6 @@ public:
 
     session_storage(){}
 
-    public:
     void add_session(std::shared_ptr<session> s) 
     {
         sessions.insert(s);

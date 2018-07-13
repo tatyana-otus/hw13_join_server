@@ -92,6 +92,7 @@ BOOST_AUTO_TEST_CASE(send_invalid_cmd)
         "INSERT A 5+8 aa\n"
         "TRUNCATE A A\n"
         "TRUNCATE C\n"
+        "TRUNCATE  A\n"
         "qwqwqwq\n";
 
         auto f = std::ofstream("in.txt");
@@ -105,6 +106,7 @@ BOOST_AUTO_TEST_CASE(send_invalid_cmd)
 
     {
         std::string data = 
+        "ERR wrong command\n"
         "ERR wrong command\n"
         "ERR wrong command\n"
         "ERR wrong command\n"
