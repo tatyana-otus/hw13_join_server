@@ -1,6 +1,10 @@
 #include <boost/asio.hpp>
-#include "queue_wrapper.h"
 #include <boost/algorithm/string.hpp>
+#include "queue_wrapper.h"
+
+class session;
+
+using boost::asio::ip::tcp;
 
 using task_t = std::tuple<std::weak_ptr<session>, std::shared_ptr<std::vector<std::string>>>;
 using tasks_t = queue_wrapper<task_t>;
@@ -12,15 +16,14 @@ public std::enable_shared_from_this<session>
 {
 public:
 
-    session(tcp::socket socket_, std::shared_ptr<session_storage> storage_,
+    session(tcp::socket socket_,
             std::shared_ptr<tasks_t> tasks_)
-    : socket(std::move(socket_)), ss(storage_),
+    : socket(std::move(socket_)),
     tasks(tasks_), cur_reply(nullptr){}
 
 
     void start ()
     {
-        ss->add_session(shared_from_this());
         do_read();  
     }
 
@@ -53,10 +56,7 @@ private:
                         q_reply.pop();
                         do_write();    
                     }    
-                }
-                else{
-                    ss->remove_session(shared_from_this());
-                }           
+                }          
             });
     }
 
@@ -91,15 +91,11 @@ private:
                 
                 do_read();
             }
-            else{
-                ss->remove_session(shared_from_this());
-            }
         });
     }
 
     tcp::socket socket;
     boost::asio::streambuf buf;
-    std::shared_ptr<session_storage> ss;
     std::string cmd;
 
     std::shared_ptr<tasks_t> tasks;

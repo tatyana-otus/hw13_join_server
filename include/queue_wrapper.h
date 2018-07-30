@@ -54,7 +54,6 @@ struct queue_wrapper
     std::mutex cv_mx;
 
     std::condition_variable cv_empty;
-    std::mutex cv_mx_empty;
 
     std::exception_ptr eptr {nullptr};
 

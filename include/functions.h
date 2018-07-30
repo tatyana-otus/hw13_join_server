@@ -1,4 +1,5 @@
 #include <iostream>
+#include "join_server.h"
 
 using boost::asio::ip::tcp;
 
