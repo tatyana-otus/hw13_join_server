@@ -1,9 +1,8 @@
-#include <fstream>
 #include <thread>
 #include <unordered_map>
-#include <queue>
 #include <set>
 #include <map>
+#include "session.h"
 
 enum class DB_CMD { INSERT, TRUNCATE, INTERSEC, SYMM_DIFF };
 
@@ -20,7 +19,7 @@ struct db_data
     }
 
 
-    int on_insert(const std::shared_ptr<std::vector<std::string>>& cmd)
+    int on_insert(const cmd_t& cmd)
     {
         if(cmd->size() != 4) throw std::invalid_argument(""); 
         if(!std::all_of(cmd->at(2).begin(), cmd->at(2).end(), ::isdigit))
@@ -28,7 +27,7 @@ struct db_data
         auto idx = str_to_idx(cmd->at(1)); // table
         auto id  = str_to_id (cmd->at(2)); // id
 
-        if(insert(idx, id, cmd->at(3)) == 0){
+        if(insert(idx, id, std::move(cmd->at(3))) == 0){
             view_intersec_valid = false;
             view_sym_diff_valid = false;
             return 0;
@@ -37,7 +36,7 @@ struct db_data
     }
 
 
-    int on_truncate(const std::shared_ptr<std::vector<std::string>>& cmd)
+    int on_truncate(const cmd_t& cmd)
     {
         if(cmd->size() != 2) throw std::invalid_argument("");
         
@@ -51,7 +50,7 @@ struct db_data
     }  
 
 
-    auto on_intersection(const std::shared_ptr<std::vector<std::string>>& cmd)
+    auto on_intersection(const cmd_t& cmd)
     {
         if(cmd->size() != 1) throw std::invalid_argument("");
 
@@ -62,7 +61,7 @@ struct db_data
     }                
 
 
-    auto on_symmetric_difference(const std::shared_ptr<std::vector<std::string>>& cmd)
+    auto on_symmetric_difference(const cmd_t& cmd)
     {
         if(cmd->size() != 1) throw std::invalid_argument("");
 
@@ -82,13 +81,13 @@ private:
     using i_table_t  = std::set<size_t>;
 
 
-    int insert( size_t idx, size_t id, const std::string & s)
+    int insert( size_t idx, size_t id, std::string && s)
     {
         assert(idx < TABLES_NUM);
 
         if(tables[idx].find(id) != tables[idx].end()) return -1;
         
-        tables[idx][id] = s;
+        tables[idx][id] = std::move(s);
 
         auto it = symm_diff.find(id);
         if( it == symm_diff.end() ){
@@ -161,13 +160,13 @@ private:
     }
 
     
-    size_t str_to_idx(const std::string & s)
+    size_t str_to_idx(const std::string & s) const
     {
         return tables_idx.at(s);
     }
 
 
-    size_t str_to_id(const std::string & s)
+    size_t str_to_id(const std::string & s) const
     {
         return std::stoull(s);
     }

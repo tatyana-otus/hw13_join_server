@@ -1,3 +1,5 @@
+#pragma once
+
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
 #include "queue_wrapper.h"
@@ -6,7 +8,9 @@ class session;
 
 using boost::asio::ip::tcp;
 
-using task_t = std::tuple<std::weak_ptr<session>, std::shared_ptr<std::vector<std::string>>>;
+using cmd_t  = std::shared_ptr<std::vector<std::string>>;
+
+using task_t = std::tuple<std::weak_ptr<session>, cmd_t>;
 using tasks_t = queue_wrapper<task_t>;
 
 using reply_t  = std::vector<std::string>;
