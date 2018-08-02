@@ -1,17 +1,133 @@
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <set>
 #include <map>
 #include "session.h"
 
 enum class DB_CMD { INSERT, TRUNCATE, INTERSEC, SYMM_DIFF };
 
+struct db_op
+{
+    using ab_table_t = std::map<size_t, std::string>;
+
+    db_op():valid_reply(false), op_reply(nullptr) {}
+
+    void update()
+    {
+        valid_reply = false;
+    }
+
+
+    std::shared_ptr<reply_t> get_reply(const ab_table_t& A, const ab_table_t& B)
+    {
+        if (valid_reply) return op_reply;
+
+        return get_reply_impl(A, B);
+    }
+
+    virtual std::shared_ptr<reply_t> get_reply_impl(const ab_table_t& A, const ab_table_t& B) = 0; 
+
+protected:
+    bool                        valid_reply;   
+    std::shared_ptr<reply_t>    op_reply;
+};
+
+
+struct db_op_intersec: public db_op
+{
+
+    std::shared_ptr<reply_t> get_reply_impl(const ab_table_t& A, const ab_table_t& B ) override
+    {
+        std::unordered_set<size_t> a_id;
+        std::set<size_t> intersec;
+
+        a_id.reserve(A.size());
+        for(auto const id : A){
+            a_id.insert(id.first);
+        }
+
+        for(auto const id : B){
+            if(a_id.find(id.first) != a_id.end()) {
+                intersec.insert(id.first);    
+            }
+        }
+
+        op_reply = std::make_shared<reply_t>();
+
+        op_reply->reserve(intersec.size());
+        for (auto & id : intersec ){
+            std::string str;
+            str += std::to_string(id) + ",";
+            str += A.at(id) + "," + B.at(id) + "\n";
+            op_reply->push_back(std::move(str));
+        }
+        op_reply->push_back("OK\n");
+
+        valid_reply = true;
+        return op_reply;
+    }
+};
+
+
+struct db_op_symm_diff: public db_op
+{
+
+    std::shared_ptr<reply_t> get_reply_impl(const ab_table_t& A, const ab_table_t& B ) override
+    {
+        std::unordered_set<size_t> a_id;
+        std::unordered_set<size_t> b_id;
+
+        std::map<size_t, size_t> symm_diff;
+
+        a_id.reserve(A.size());
+        b_id.reserve(B.size());
+
+        for(auto const id : A){
+            a_id.insert(id.first);
+        }
+
+        for(auto const id : B){
+            b_id.insert(id.first);
+        }
+
+        for(auto const id : A){
+            if(b_id.find(id.first) == b_id.end()) {
+                symm_diff[id.first] = 0;    
+            }
+        }
+
+        for(auto const id : B){
+            if(a_id.find(id.first) == a_id.end()) {
+                symm_diff[id.first] = 1;    
+            }
+        }
+
+        op_reply = std::make_shared<reply_t>();
+
+        op_reply->reserve(symm_diff.size());
+        for (auto & val : symm_diff ){
+            std::string str;
+            auto id = val.first;
+            str += std::to_string(id) + ",";
+            if(val.second == 0)
+                str += A.at(id) + "," + "\n";
+            else
+                str += "," + B.at(id) + "\n";
+            
+            op_reply->push_back(std::move(str));
+        }
+        op_reply->push_back("OK\n");
+
+        valid_reply = true;
+        return op_reply;
+    }
+};
+
+
 struct db_data
 {
-    db_data():
-    view_intersec_valid(false),
-    view_sym_diff_valid(false){}
-
+    db_data(){}
 
     DB_CMD get_cmd(const std::string & s) const
     {
@@ -27,12 +143,14 @@ struct db_data
         auto idx = str_to_idx(cmd->at(1)); // table
         auto id  = str_to_id (cmd->at(2)); // id
 
-        if(insert(idx, id, std::move(cmd->at(3))) == 0){
-            view_intersec_valid = false;
-            view_sym_diff_valid = false;
-            return 0;
-        }  
-        return 1; 
+        if(tables[idx].find(id) != tables[idx].end()) return 1;
+        
+        tables[idx][id] = std::move(cmd->at(3));
+
+        op_intersec.update();
+        op_symm_diff.update();
+
+        return 0;
     }
 
 
@@ -42,9 +160,10 @@ struct db_data
         
         auto idx = str_to_idx(cmd->at(1)); // table
 
-        truncate(idx);
-        view_intersec_valid = false;
-        view_sym_diff_valid = false;
+        tables[idx].clear();
+
+        op_intersec.update();
+        op_symm_diff.update();
 
         return 0;
     }  
@@ -54,10 +173,7 @@ struct db_data
     {
         if(cmd->size() != 1) throw std::invalid_argument("");
 
-        if(!view_intersec_valid)
-            validate_intersec_view(); 
-
-        return view_intersec;
+        return op_intersec.get_reply(tables[0], tables[1]);
     }                
 
 
@@ -65,10 +181,7 @@ struct db_data
     {
         if(cmd->size() != 1) throw std::invalid_argument("");
 
-        if(!view_sym_diff_valid)
-            validate_symm_diff();
-
-        return view_sym_diff;
+        return op_symm_diff.get_reply(tables[0], tables[1]);
     }
 
 
@@ -79,85 +192,6 @@ private:
     using table_t    = std::array<std::map<size_t, std::string>, TABLES_NUM>;
     using sd_table_t = std::map<size_t, size_t>;
     using i_table_t  = std::set<size_t>;
-
-
-    int insert( size_t idx, size_t id, std::string && s)
-    {
-        assert(idx < TABLES_NUM);
-
-        if(tables[idx].find(id) != tables[idx].end()) return -1;
-        
-        tables[idx][id] = std::move(s);
-
-        auto it = symm_diff.find(id);
-        if( it == symm_diff.end() ){
-            symm_diff[id] = idx;
-        }
-        else{
-            intersec.insert(id);
-            symm_diff.erase(it);                             
-        }
-
-        return 0;
-    }
-
-
-    void truncate(size_t idx)
-    {
-        assert(idx < TABLES_NUM);
-
-        tables[idx].clear();
-
-        for (auto it = symm_diff.cbegin(); it != symm_diff.cend(); ){
-            if(it->second == idx) 
-                it = symm_diff.erase(it);
-            else ++it;
-        }
-
-        for (auto & id : intersec ){
-            if(idx == 0)
-                symm_diff[id] = 1;
-            else
-                symm_diff[id] = 0;
-        }   
-
-        intersec.clear();
-    }
-
-
-    void validate_intersec_view()
-    {
-        view_intersec = std::make_shared<reply_t>();
-
-        view_intersec->reserve(intersec.size());
-        for (auto & id : intersec ){
-            std::string str;
-            str += std::to_string(id) + ",";
-            str += tables[0][id] + "," + tables[1][id] + "\n";
-            view_intersec->push_back(std::move(str));
-        }
-        view_intersec->push_back("OK\n");
-    }
-
-
-    void validate_symm_diff()
-    {
-        view_sym_diff = std::make_shared<reply_t>();
-
-        view_sym_diff->reserve(symm_diff.size());
-        for (auto & val : symm_diff ){
-            std::string str;
-            auto id = val.first;
-            str += std::to_string(id) + ",";
-            if(val.second == 0)
-                str += tables[0][id] + "," + "\n";
-            else
-                str += "," + tables[1][id] + "\n";
-            
-            view_sym_diff->push_back(std::move(str));
-        }
-        view_sym_diff->push_back("OK\n");
-    }
 
     
     size_t str_to_idx(const std::string & s) const
@@ -171,16 +205,10 @@ private:
         return std::stoull(s);
     }
 
+    db_op_intersec  op_intersec;
+    db_op_symm_diff op_symm_diff;
+
     table_t tables;
-
-    i_table_t  intersec;
-    sd_table_t symm_diff;
-
-    std::shared_ptr<reply_t> view_intersec;
-    std::shared_ptr<reply_t> view_sym_diff;
-
-    bool view_intersec_valid;
-    bool view_sym_diff_valid;
 
     const std::unordered_map<std::string, DB_CMD> db_command{
         { "INSERT",   DB_CMD::INSERT   },{ "INTERSECTION",         DB_CMD::INTERSEC  },     
