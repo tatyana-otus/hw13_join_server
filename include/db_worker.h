@@ -7,10 +7,11 @@
 
 enum class DB_CMD { INSERT, TRUNCATE, INTERSEC, SYMM_DIFF };
 
+const static int TABLES_NUM = 2;
+using ab_table_t = std::map<size_t, std::string>;
+
 struct db_op
 {
-    using ab_table_t = std::map<size_t, std::string>;
-
     db_op():valid_reply(false), op_reply(nullptr) {}
 
     void update()
@@ -19,7 +20,7 @@ struct db_op
     }
 
 
-    std::shared_ptr<reply_t> get_reply(const ab_table_t& A, const ab_table_t& B)
+    auto get_reply(const ab_table_t& A, const ab_table_t& B)
     {
         if (valid_reply) return op_reply;
 
@@ -37,34 +38,26 @@ protected:
 struct db_op_intersec: public db_op
 {
 
+private:
     std::shared_ptr<reply_t> get_reply_impl(const ab_table_t& A, const ab_table_t& B ) override
     {
-        std::unordered_set<size_t> a_id;
-        std::set<size_t> intersec;
-
-        a_id.reserve(A.size());
-        for(auto const id : A){
-            a_id.insert(id.first);
-        }
-
-        for(auto const id : B){
-            if(a_id.find(id.first) != a_id.end()) {
-                intersec.insert(id.first);    
-            }
-        }
-
-        op_reply = std::make_shared<reply_t>();
+        ab_table_t intersec;
+        std::set_intersection(A.begin(), A.end(),
+                          B.begin(), B.end(),
+                          std::inserter(intersec, intersec.end()), 
+                          [](const auto &a, const auto& b) { return a.first < b.first; });
+        auto op_reply = std::make_shared<reply_t>();
 
         op_reply->reserve(intersec.size());
-        for (auto & id : intersec ){
+        for (auto & val : intersec ){
             std::string str;
+            auto id = val.first;
             str += std::to_string(id) + ",";
             str += A.at(id) + "," + B.at(id) + "\n";
             op_reply->push_back(std::move(str));
         }
         op_reply->push_back("OK\n");
 
-        valid_reply = true;
         return op_reply;
     }
 };
@@ -73,61 +66,95 @@ struct db_op_intersec: public db_op
 struct db_op_symm_diff: public db_op
 {
 
+private:
     std::shared_ptr<reply_t> get_reply_impl(const ab_table_t& A, const ab_table_t& B ) override
     {
-        std::unordered_set<size_t> a_id;
-        std::unordered_set<size_t> b_id;
+        ab_table_t symm_diff;
+        std::set_symmetric_difference(A.begin(), A.end(),
+                          B.begin(), B.end(),
+                          std::inserter(symm_diff, symm_diff.end()),
+                          [](const auto &a, const auto b) { return a.first < b.first;});
 
-        std::map<size_t, size_t> symm_diff;
-
-        a_id.reserve(A.size());
-        b_id.reserve(B.size());
-
-        for(auto const id : A){
-            a_id.insert(id.first);
-        }
-
-        for(auto const id : B){
-            b_id.insert(id.first);
-        }
-
-        for(auto const id : A){
-            if(b_id.find(id.first) == b_id.end()) {
-                symm_diff[id.first] = 0;    
-            }
-        }
-
-        for(auto const id : B){
-            if(a_id.find(id.first) == a_id.end()) {
-                symm_diff[id.first] = 1;    
-            }
-        }
-
-        op_reply = std::make_shared<reply_t>();
-
+        auto op_reply = std::make_shared<reply_t>();
         op_reply->reserve(symm_diff.size());
-        for (auto & val : symm_diff ){
+        for(auto & val : symm_diff ){
             std::string str;
             auto id = val.first;
             str += std::to_string(id) + ",";
-            if(val.second == 0)
-                str += A.at(id) + "," + "\n";
-            else
-                str += "," + B.at(id) + "\n";
-            
+            if(B.find(id) == B.end())
+              str += val.second + "," + "\n";
+            else  
+              str += "," +val.second  + "\n";
             op_reply->push_back(std::move(str));
         }
         op_reply->push_back("OK\n");
-
-        valid_reply = true;
+        
         return op_reply;
     }
 };
 
 
-struct db_data
+struct data_storage {
+
+    data_storage():
+    op_intersec (std::make_unique<db_op_intersec> ()), 
+    op_symm_diff(std::make_unique<db_op_symm_diff>()){}
+
+
+    int insert(size_t idx, size_t id, std::string && s)
+    {
+        assert(idx < TABLES_NUM);
+
+        if(tables[idx].find(id) != tables[idx].end()) return 1;
+        
+        tables[idx][id] = std::move(s);
+
+        op_intersec->update();
+        op_symm_diff->update();
+
+        return 0;
+    }
+
+
+    int truncate(size_t idx)
+    {
+        assert(idx < TABLES_NUM);
+
+        tables[idx].clear();
+
+        op_intersec->update();
+        op_symm_diff->update();
+
+        return 0;
+    }
+
+
+    auto intersection()
+    {
+        return op_intersec->get_reply(tables[0], tables[1]);
+    }  
+
+
+    auto symmetric_difference()
+    {
+        return op_symm_diff->get_reply(tables[0], tables[1]);
+    }
+
+
+private:
+    using tables_t    = std::array<ab_table_t, TABLES_NUM>;
+
+    std::unique_ptr<db_op>  op_intersec;
+    std::unique_ptr<db_op>  op_symm_diff;
+
+    tables_t tables;
+};
+
+
+struct db_interface
 {
-    db_data(){}
+    db_interface(){}
+
 
     DB_CMD get_cmd(const std::string & s) const
     {
@@ -143,14 +170,8 @@ struct db_data
         auto idx = str_to_idx(cmd->at(1)); // table
         auto id  = str_to_id (cmd->at(2)); // id
 
-        if(tables[idx].find(id) != tables[idx].end()) return 1;
-        
-        tables[idx][id] = std::move(cmd->at(3));
 
-        op_intersec.update();
-        op_symm_diff.update();
-
-        return 0;
+        return data.insert(idx, id, std::move(cmd->at(3)));
     }
 
 
@@ -160,12 +181,7 @@ struct db_data
         
         auto idx = str_to_idx(cmd->at(1)); // table
 
-        tables[idx].clear();
-
-        op_intersec.update();
-        op_symm_diff.update();
-
-        return 0;
+        return data.truncate(idx);
     }  
 
 
@@ -173,7 +189,7 @@ struct db_data
     {
         if(cmd->size() != 1) throw std::invalid_argument("");
 
-        return op_intersec.get_reply(tables[0], tables[1]);
+        return data.intersection();
     }                
 
 
@@ -181,18 +197,11 @@ struct db_data
     {
         if(cmd->size() != 1) throw std::invalid_argument("");
 
-        return op_symm_diff.get_reply(tables[0], tables[1]);
+        return data.symmetric_difference();
     }
 
 
-private:
-
-    const static int TABLES_NUM = 2;
-  
-    using table_t    = std::array<std::map<size_t, std::string>, TABLES_NUM>;
-    using sd_table_t = std::map<size_t, size_t>;
-    using i_table_t  = std::set<size_t>;
-
+private: 
     
     size_t str_to_idx(const std::string & s) const
     {
@@ -205,10 +214,8 @@ private:
         return std::stoull(s);
     }
 
-    db_op_intersec  op_intersec;
-    db_op_symm_diff op_symm_diff;
 
-    table_t tables;
+    data_storage data;
 
     const std::unordered_map<std::string, DB_CMD> db_command{
         { "INSERT",   DB_CMD::INSERT   },{ "INTERSECTION",         DB_CMD::INTERSEC  },     
@@ -219,6 +226,7 @@ private:
         { "A", 0 }, { "B", 1 }
     };
 };
+
 
 
 struct db_worker
@@ -280,10 +288,10 @@ private:
         std::tie(s, cmd) = t;
 
         try{
-            switch(data.get_cmd(cmd->at(0))){
+            switch(db.get_cmd(cmd->at(0))){
                
             case DB_CMD::INSERT: 
-                if(data.on_insert(cmd) == 0){    
+                if(db.on_insert(cmd) == 0){    
                     send_reply_ok(s);
                 }
                 else{
@@ -293,19 +301,19 @@ private:
                 break;
 
             case DB_CMD::TRUNCATE: 
-                data.on_truncate(cmd);
+                db.on_truncate(cmd);
                 send_reply_ok(s);
                 break;
 
             case DB_CMD::INTERSEC: 
                 if(!s.expired()){
-                    send_reply_res(s, data.on_intersection(cmd));
+                    send_reply_res(s, db.on_intersection(cmd));
                 } 
                 break;
 
             case DB_CMD::SYMM_DIFF:
                 if(!s.expired()){
-                    send_reply_res(s, data.on_symmetric_difference(cmd));
+                    send_reply_res(s, db.on_symmetric_difference(cmd));
                 }
                 break;               
             }
@@ -353,5 +361,5 @@ private:
     reply_t ok_reply  = {"OK\n"};
     reply_t err_reply = {"ERR wrong command\n"};
 
-    db_data data;
+    db_interface db;
 };
