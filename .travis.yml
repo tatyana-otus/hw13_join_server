@@ -1,4 +1,5 @@
 language: cpp
+dist: xenial
 before_script:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
@@ -14,5 +15,5 @@ deploy:
   - provider: script
     skip_cleanup: true
     script:
-    - curl -T Build/join_server-*.$TRAVIS_BUILD_NUMBER-Linux.deb -utatyana-otus:$BINTRAY_API_KEY "https://api.bintray.com/content/tatyana-otus/hw_otus/join_server/$TRAVIS_BUILD_NUMBER/join_server-1.0.$TRAVIS_BUILD_NUMBER-Linux.deb;deb_distribution=trusty;deb_component=main;deb_architecture=amd64;publish=1"
+    - curl -T Build/join_server-*.$TRAVIS_BUILD_NUMBER-Linux.deb -utatyana-otus:$BINTRAY_API_KEY "https://api.bintray.com/content/tatyana-otus/hw_otus/test/$TRAVIS_BUILD_NUMBER/join_server-1.0.$TRAVIS_BUILD_NUMBER-Linux.deb;deb_distribution=xenial;deb_component=main;deb_architecture=amd64;publish=1"
  
